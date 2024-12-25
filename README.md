@@ -57,3 +57,6 @@
 </p>
 
 </div>
+
+## 🕒 Stats
+[![Metrics](./github-metrics.svg)](#)
