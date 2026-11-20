@@ -1,50 +1,87 @@
-# Visit https://github.com/lowlighter/metrics#-documentation for full reference
-name: Metrics
+# GitHub 个人主页数据图自动生成
+#
+# 生成文件：
+# - github-metrics/base.svg            基础指标（概览、活动、社区、仓库）
+# - github-metrics/languages.svg       最常用语言
+# - github-metrics/isocalendar.svg     全年 3D 贡献日历
+#
+# 依赖：
+# - https://github.com/lowlighter/metrics
+
+name: GitHub Metrics
+
 on:
-  # Schedule updates (each hour)
-  schedule: [{cron: "0 * * * *"}]
-  # Lines below let you run workflow manually and on each commit
+  # cron 用 UTC；00:00 UTC = 北京时间 08:00。每天一次足够，不必每小时。
+  schedule:
+    - cron: "0 0 * * *"
+
   workflow_dispatch:
-  push: {branches: ["master", "main"]}
+
+  push:
+    branches:
+      - main
+    # 自动生成的图片提交不再触发本工作流，避免重复运行。
+    paths-ignore:
+      - "github-metrics/**"
+
+# 定时、手动、push 同时触发时只保留最新一次，避免并发写 main。
+concurrency:
+  group: github-metrics
+  cancel-in-progress: true
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # lowlighter/metrics
+  # ---------------------------------------------------------------------------
   github-metrics:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
-    steps:
-      - uses: lowlighter/metrics@latest
-        with:
-          # Your GitHub token
-          # The following scopes are required:
-          #  - public_access (default scope)
-          # The following additional scopes may be required:
-          #  - read:org      (for organization related metrics)
-          #  - read:user     (for user related data)
-          #  - read:packages (for some packages related data)
-          #  - repo          (optional, if you want to include private repositories)
-          token: ${{ secrets.METRICS_TOKEN }}
 
-          # Options
+    steps:
+      # 固定到 v3.34 的提交，避免 @latest 无提示改变行为。升级前先手动验证再改 SHA。
+      - name: Base metrics
+        uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6
+        with:
+          filename: github-metrics/base.svg
+          token: ${{ secrets.METRICS_TOKEN }}
           user: moli721
           template: classic
-          base: header, activity, community, repositories, metadata
           config_timezone: Asia/Shanghai
-          plugin_isocalendar: yes
-          plugin_isocalendar_duration: full-year
+          base: "header, activity, community, repositories"
+          plugin_introduction: yes
+          plugin_traffic: no
+          # 插件出错时直接失败，避免提交残缺的 SVG。
+          plugins_errors_fatal: yes
+          committer_message: "chore: update GitHub metrics [skip ci]"
+
+      - name: Languages
+        uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6
+        with:
+          filename: github-metrics/languages.svg
+          token: ${{ secrets.METRICS_TOKEN }}
+          user: moli721
+          template: classic
+          base: ""
           plugin_languages: yes
-          plugin_languages_analysis_timeout: 15
-          plugin_languages_analysis_timeout_repositories: 7.5
+          plugin_languages_sections: most-used
           plugin_languages_categories: markup, programming
           plugin_languages_colors: github
           plugin_languages_limit: 8
-          plugin_languages_recent_categories: markup, programming
-          plugin_languages_recent_days: 14
-          plugin_languages_recent_load: 300
-          plugin_languages_sections: most-used
           plugin_languages_threshold: 0%
-          plugin_reactions: yes
-          plugin_reactions_display: absolute
-          plugin_reactions_limit: 200
-          plugin_reactions_limit_discussions: 100
-          plugin_reactions_limit_discussions_comments: 100
-          plugin_reactions_limit_issues: 100
+          plugins_errors_fatal: yes
+          committer_message: "chore: update GitHub metrics [skip ci]"
+
+      - name: Full-year contribution calendar
+        uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6
+        with:
+          filename: github-metrics/isocalendar.svg
+          token: ${{ secrets.METRICS_TOKEN }}
+          user: moli721
+          template: classic
+          base: ""
+          plugin_isocalendar: yes
+          plugin_isocalendar_duration: full-year
+          plugins_errors_fatal: yes
+          committer_message: "chore: update GitHub metrics [skip ci]"
